@@ -4,8 +4,11 @@ const CLIENT_CONFIG = {
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "javascript_origins": ["http://localhost:8000"],
-    "redirect_uri": "http://localhost:8000"
+    "javascript_origins": [
+        "http://localhost:8000",
+        "https://food-track-web-app-986319166215.australia-southeast2.run.app"
+    ],
+    "redirect_uri": "https://food-track-web-app-986319166215.australia-southeast2.run.app"
 };
 
 const FOLDER_ID = '1cnK5Le4U1vUtG_PiGrqU-wxEQKL2Zjfb';
