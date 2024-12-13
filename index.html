@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Food Container Image Gallery</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        .gallery {
+            display: block;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .gallery-item {
+            width: 100%;
+            background-color: white;
+            border-radius: 8px;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .gallery-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .gallery-item img {
+            width: 100%;
+            height: 250px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        .metadata {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #666;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+        .error {
+            color: #dc3545;
+            text-align: center;
+            padding: 20px;
+            background-color: #ffe6e6;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin: 20px 0;
+            font-size: 2em;
+        }
+        .image-count {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        #authorize-button, #refresh-button {
+            display: none;
+            margin: 20px auto;
+            padding: 10px 20px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        #authorize-button {
+            background-color: #4285f4;
+        }
+        #authorize-button:hover {
+            background-color: #357abd;
+        }
+        #refresh-button {
+            background-color: #34a853;
+        }
+        #refresh-button:hover {
+            background-color: #2d9047;
+        }
+        .date-section {
+            margin-bottom: 30px;
+        }
+        .date-header {
+            background-color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .date-header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .date-text {
+            font-size: 24px;
+            color: #333;
+            font-weight: 500;
+        }
+        .calorie-total {
+            font-size: 18px;
+            color: #34a853;
+            background-color: #e8f5e9;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+        .date-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        @media (max-width: 1024px) {
+            .date-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 768px) {
+            .date-header-content {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+            .calorie-total {
+                display: inline-block;
+            }
+        }
+        @media (max-width: 480px) {
+            .date-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .load-more-button {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 24px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .load-more-button:hover {
+            background-color: #357abd;
+        }
+
+        .load-more-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Food Container Image Gallery</h1>
+    <button id="authorize-button">Authorize Access</button>
+    <button id="refresh-button">Refresh Images</button>
+    <div id="imageCount" class="image-count"></div>
+    <div id="gallery" class="gallery">
+        <div id="loading" class="loading">Please authorize access to view images...</div>
+    </div>
+
+    <script src="script.js"></script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</body>
