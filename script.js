@@ -1,5 +1,5 @@
 const CLIENT_CONFIG = {
-    "client_id": "986319166215-mtmn4gfqvcpm2vo9tee2nnp2t0o8vgg3.apps.googleusercontent.com",
+    "client_id": "986319166215-mtmm4gfqvcpm2vo9tee2nnp1t0o8vgg3.apps.googleusercontent.com",
     "project_id": "food-container-439701",
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
@@ -7,9 +7,9 @@ const CLIENT_CONFIG = {
     "javascript_origins": [
         "http://localhost:8080",
         "https://food-track-web-app-986319166215.australia-southeast2.run.app"
-    ],
-    "redirect_uri": window.location.origin // This will automatically use the correct URL
+    ]
 };
+
 
 const FOLDER_ID = '1cnK5Le4U1vUtG_PiGrqU-wxEQKL2Zjfb';
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
