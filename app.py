@@ -1,4 +1,5 @@
-from flask import Flask, send_from_directory, safe_join
+from flask import Flask, send_from_directory
+from werkzeug.utils import safe_join
 from flask_cors import CORS
 import os
 
@@ -20,6 +21,8 @@ def serve_script():
 def serve_files(path):
     try:
         safe_path = safe_join(BASE_DIR, path)
+        if not safe_path:
+            return "File not found", 404
         return send_from_directory(BASE_DIR, path)
     except Exception as e:
         app.logger.error(f"Error serving file {path}: {str(e)}")
