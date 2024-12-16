@@ -7,6 +7,10 @@ const CLIENT_CONFIG = {
     "javascript_origins": [
         "http://localhost:8080",
         "https://food-track-web-app-986319166215.australia-southeast2.run.app"
+    ],
+    "authorized_domains": [
+        "localhost",
+        "food-track-web-app-986319166215.australia-southeast2.run.app"
     ]
 };
 
@@ -47,8 +51,8 @@ function gisLoaded() {
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_CONFIG.client_id,
         scope: SCOPES,
-        callback: '',
-        redirect_uri: CLIENT_CONFIG.redirect_uri
+        callback: ''
+        // Remove redirect_uri as it's not needed here
     });
     gisInited = true;
     console.log('GIS loaded successfully');
