@@ -1,17 +1,31 @@
+function logAuthDetails(message, data) {
+    console.log('%c[Auth Debug] ' + message, 'background: #f0f0f0; color: #333; padding: 2px 5px;', data);
+}
+
 const CLIENT_CONFIG = {
     "client_id": "986319166215-mtmm4gfqvcpm2vo9tee2nnp1t0o8vgg3.apps.googleusercontent.com",
     "project_id": "food-container-439701",
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "redirect_uri": window.location.hostname === 'localhost' 
-        ? "http://localhost:8080"
-        : "https://food-track-web-app-986319166215.australia-southeast2.run.app",
     "javascript_origins": [
         "http://localhost:8080",
         "https://food-track-web-app-986319166215.australia-southeast2.run.app"
+    ],
+    "authorized_domains": [
+        "localhost",
+        "food-track-web-app-986319166215.australia-southeast2.run.app"
     ]
 };
+
+// Log initial configuration
+logAuthDetails('OAuth Configuration:', {
+    client_id: CLIENT_CONFIG.client_id,
+    current_url: window.location.href,
+    hostname: window.location.hostname,
+    allowed_origins: CLIENT_CONFIG.javascript_origins,
+    project_id: CLIENT_CONFIG.project_id
+});
 
 const FOLDER_ID = '1cnK5Le4U1vUtG_PiGrqU-wxEQKL2Zjfb';
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
@@ -25,53 +39,81 @@ let allFiles = [];
 let processedFiles = new Set();
 
 function gapiLoaded() {
-    console.log('GAPI loading started...');
-    gapi.load('client', initializeGapiClient);
+    logAuthDetails('GAPI loading started');
+    gapi.load('client', {
+        callback: initializeGapiClient,
+        onerror: (error) => logAuthDetails('GAPI load error:', error)
+    });
 }
 
 async function initializeGapiClient() {
-    console.log('Initializing GAPI client...');
+    logAuthDetails('Initializing GAPI client...');
     try {
-        await gapi.client.init({
+        const initConfig = {
             clientId: CLIENT_CONFIG.client_id,
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        };
+        logAuthDetails('GAPI init config:', initConfig);
+        
+        await gapi.client.init(initConfig);
+        
+        logAuthDetails('GAPI client initialized successfully', {
+            hasToken: !!gapi.client.getToken(),
+            apiKey: !!gapi.client.apiKey,
+            clientId: !!gapi.client.clientId
         });
+        
         gapiInited = true;
-        console.log('GAPI client initialized successfully');
         maybeEnableButtons();
     } catch (error) {
-        console.error('Error initializing GAPI client:', error);
+        logAuthDetails('GAPI initialization error:', {
+            message: error.message,
+            stack: error.stack,
+            details: error.details || 'No additional details'
+        });
     }
 }
 
 function gisLoaded() {
-    console.log('GIS loading started...');
-    tokenClient = google.accounts.oauth2.initTokenClient({
+    logAuthDetails('GIS loading started...');
+    const tokenConfig = {
         client_id: CLIENT_CONFIG.client_id,
         scope: SCOPES,
-        redirect_uri: CLIENT_CONFIG.redirect_uri,
         callback: ''
-    });
-    gisInited = true;
-    console.log('GIS loaded successfully');
-    maybeEnableButtons();
+    };
+    logAuthDetails('Token client configuration:', tokenConfig);
+    
+    try {
+        tokenClient = google.accounts.oauth2.initTokenClient(tokenConfig);
+        logAuthDetails('Token client initialized:', {
+            hasTokenClient: !!tokenClient,
+            scope: SCOPES
+        });
+        gisInited = true;
+        maybeEnableButtons();
+    } catch (error) {
+        logAuthDetails('Token client initialization error:', {
+            message: error.message,
+            stack: error.stack
+        });
+    }
 }
 
 function maybeEnableButtons() {
-    console.log('Checking button state - GAPI:', gapiInited, 'GIS:', gisInited);
+    logAuthDetails('Checking button state - GAPI:', gapiInited, 'GIS:', gisInited);
     if (gapiInited && gisInited) {
         document.getElementById('authorize-button').style.display = 'block';
-        console.log('Authorization button enabled');
+        logAuthDetails('Authorization button enabled');
     }
 }
 
 async function listFiles() {
-    console.log('Starting listFiles...');
+    logAuthDetails('Starting listFiles...');
     const gallery = document.getElementById('gallery');
     gallery.innerHTML = '<div id="loading" class="loading">Loading fresh images...</div>';
 
     try {
-        console.log('Fetching files from Drive...');
+        logAuthDetails('Fetching files from Drive...');
         const response = await gapi.client.drive.files.list({
             q: `'${FOLDER_ID}' in parents and (mimeType contains 'image/' or mimeType contains 'application/json') and trashed = false`,
             fields: 'files(id, name, modifiedTime, mimeType)',
@@ -82,9 +124,11 @@ async function listFiles() {
         });
 
         allFiles = response.result.files;
-        console.log(`Found ${allFiles.length} total files`);
-        console.log('Image files:', allFiles.filter(f => f.mimeType.includes('image/')).length);
-        console.log('JSON files:', allFiles.filter(f => f.mimeType.includes('json')).length);
+        logAuthDetails(`Found files:`, {
+            totalFiles: allFiles.length,
+            imageFiles: allFiles.filter(f => f.mimeType.includes('image/')).length,
+            jsonFiles: allFiles.filter(f => f.mimeType.includes('json')).length
+        });
 
         processedFiles.clear();
         currentlyLoading = false;
@@ -96,49 +140,98 @@ async function listFiles() {
         document.getElementById('refresh-button').style.display = 'block';
 
     } catch (err) {
-        console.error('Error in listFiles:', err);
+        logAuthDetails('Error in listFiles:', {
+            error: err.message,
+            stack: err.stack,
+            details: err.details || 'No additional details'
+        });
         gallery.innerHTML = '<div class="error">Error loading images. Please try refreshing.</div>';
     }
 }
 
+function handleAuthClick() {
+    logAuthDetails('Auth click handler started');
+    
+    tokenClient.callback = async (resp) => {
+        logAuthDetails('Token client callback received response:', {
+            hasError: !!resp.error,
+            errorDetails: resp.error,
+            hasAccessToken: !!resp.access_token,
+            expiresIn: resp.expires_in
+        });
+
+        if (resp.error !== undefined) {
+            logAuthDetails('Token client error:', {
+                error: resp.error,
+                errorSubtype: resp.error_subtype,
+                errorURI: resp.error_uri,
+                errorDescription: resp.error_description
+            });
+            throw resp;
+        }
+        
+        const token = gapi.client.getToken();
+        logAuthDetails('Current token state:', {
+            hasToken: !!token,
+            tokenDetails: token ? {
+                expiresIn: token.expires_in,
+                scope: token.scope,
+                tokenType: token.token_type
+            } : null
+        });
+
+        document.getElementById('authorize-button').style.display = 'none';
+        await listFiles();
+    };
+
+    if (gapi.client.getToken() === null) {
+        logAuthDetails('Requesting access token with consent');
+        try {
+            tokenClient.requestAccessToken({prompt: 'consent'});
+        } catch (error) {
+            logAuthDetails('Error requesting access token:', error);
+        }
+    } else {
+        logAuthDetails('Requesting access token without consent');
+        try {
+            tokenClient.requestAccessToken({prompt: ''});
+        } catch (error) {
+            logAuthDetails('Error requesting access token:', error);
+        }
+    }
+}
 
 function displayDateSection(date, items) {
-    console.log(`Displaying date section for: ${date}`);
+    logAuthDetails(`Displaying date section for: ${date}`, {
+        itemCount: items.length
+    });
+    
     const gallery = document.getElementById('gallery');
     
-    // Remove load more button if it exists
     const existingButton = document.getElementById('load-more-button');
     if (existingButton) {
-        console.log('Removing existing load more button');
         existingButton.remove();
     }
 
-    // First try to find existing section for this date
     const existingSection = Array.from(gallery.children).find(
         child => child.querySelector('.date-text')?.textContent === date
     );
 
-    // Initialize dateSection and dateContainer
     let dateSection;
     let dateContainer;
 
     if (existingSection) {
-        console.log('Found existing section for date:', date);
         dateSection = existingSection;
         dateContainer = existingSection.querySelector('.date-container');
         if (!dateContainer) {
-            console.log('Creating new date container in existing section');
-            dateContainer = document.jjElement('div');
+            dateContainer = document.createElement('div');
             dateContainer.className = 'date-container';
             dateSection.appendChild(dateContainer);
         }
     } else {
-        console.log('Creating new section for date:', date);
-        // Create new date section
         dateSection = document.createElement('div');
         dateSection.className = 'date-section';
         
-        // Calculate calories
         let totalCalories = 0;
         let validCalorieCount = 0;
         
@@ -152,7 +245,6 @@ function displayDateSection(date, items) {
             }
         });
         
-        // Create header
         const dateHeader = document.createElement('div');
         dateHeader.className = 'date-header';
         dateHeader.innerHTML = `
@@ -163,12 +255,10 @@ function displayDateSection(date, items) {
         `;
         dateSection.appendChild(dateHeader);
         
-        // Create container for items
         dateContainer = document.createElement('div');
         dateContainer.className = 'date-container';
         dateSection.appendChild(dateContainer);
         
-        // Insert in chronological order
         const allSections = Array.from(gallery.children);
         const insertIndex = allSections.findIndex(section => {
             const sectionDate = section.querySelector('.date-text')?.textContent;
@@ -181,15 +271,11 @@ function displayDateSection(date, items) {
             gallery.insertBefore(dateSection, allSections[insertIndex]);
         }
     }
-
-    console.log(`Adding ${items.length} items to container`);
     
-    items.forEach(({ file, data }, index) => {
-        console.log(`Processing item ${index + 1}/${items.length}`);
+    items.forEach(({ file, data }) => {
         const containerDiv = document.createElement('div');
         containerDiv.className = 'gallery-item';
         
-        // Create image element
         const img = document.createElement('img');
         const timestamp = new Date().getTime();
         img.src = `https://drive.google.com/thumbnail?id=${file.id}&sz=w1000&t=${timestamp}`;
@@ -230,15 +316,13 @@ function displayDateSection(date, items) {
         dateContainer.appendChild(containerDiv);
     });
 
-    // Re-add the load more button at the end
     updateLoadMoreButton();
 }
 
-// Update error handling in processNextBatch
 async function processNextBatch() {
-    console.log('Starting processNextBatch...');
+    logAuthDetails('Starting processNextBatch');
     if (currentlyLoading) {
-        console.log('Already loading a batch, skipping...');
+        logAuthDetails('Already loading a batch, skipping...');
         return;
     }
 
@@ -256,7 +340,7 @@ async function processNextBatch() {
         );
 
         if (imageFiles.length === 0) {
-            console.log('No more images to process');
+            logAuthDetails('No more images to process');
             currentlyLoading = false;
             updateLoadMoreButton();
             return;
@@ -267,7 +351,6 @@ async function processNextBatch() {
         
         for (const file of batchFiles) {
             try {
-                console.log(`Processing file: ${file.name}`);
                 const data = await getAnalysisForImage(allFiles, file.name);
                 if (data && data.timestamp) {
                     const date = new Date(data.timestamp).toLocaleDateString();
@@ -278,34 +361,35 @@ async function processNextBatch() {
                     processedFiles.add(file.name);
                 }
             } catch (error) {
-                console.error(`Error processing file ${file.name}:`, error);
+                logAuthDetails(`Error processing file ${file.name}:`, {
+                    error: error.message,
+                    stack: error.stack
+                });
             }
         }
 
         for (const date in filesByDate) {
-            try {
-                await displayDateSection(date, filesByDate[date]);
-            } catch (error) {
-                console.error(`Error displaying section for date ${date}:`, error);
-            }
+            await displayDateSection(date, filesByDate[date]);
         }
 
     } catch (error) {
-        console.error('Error in processNextBatch:', error);
+        logAuthDetails('Error in processNextBatch:', {
+            error: error.message,
+            stack: error.stack
+        });
         const gallery = document.getElementById('gallery');
         gallery.innerHTML += '<div class="error">Error loading images. Please try refreshing.</div>';
     } finally {
-        console.log('Batch processing completed');
         currentlyLoading = false;
         updateLoadMoreButton();
     }
 }
 
 async function getAnalysisForImage(files, imageName) {
-    console.log(`Getting analysis for image: ${imageName}`);
+    logAuthDetails(`Getting analysis for image: ${imageName}`);
     const timestamp = imageName.split('optimized_food_container_')[1]?.split('.')[0];
     if (!timestamp) {
-        console.log('No timestamp found in filename');
+        logAuthDetails('No timestamp found in filename');
         return null;
     }
 
@@ -315,44 +399,44 @@ async function getAnalysisForImage(files, imageName) {
     const analysisFile = files.find(f => f.name === analysisFileName);
     const metadataFile = files.find(f => f.name === metadataFileName);
     
-    console.log('Analysis file found:', !!analysisFile);
-    console.log('Metadata file found:', !!metadataFile);
+    logAuthDetails('Files found:', {
+        analysisFile: !!analysisFile,
+        metadataFile: !!metadataFile
+    });
 
     let data = null;
     
     try {
         if (analysisFile) {
-            console.log('Fetching analysis file...');
+            logAuthDetails('Fetching analysis file...');
             const response = await gapi.client.drive.files.get({
                 fileId: analysisFile.id,
                 alt: 'media'
             });
             data = response.result;
         } else if (metadataFile) {
-            console.log('Fetching metadata file...');
+            logAuthDetails('Fetching metadata file...');
             const response = await gapi.client.drive.files.get({
                 fileId: metadataFile.id,
                 alt: 'media'
             });
             data = response.result;
         }
-        console.log('Data retrieved successfully');
+        logAuthDetails('Data retrieved successfully');
         return data;
     } catch (error) {
-        console.error('Error fetching analysis:', error);
+        logAuthDetails('Error fetching analysis:', {
+            error: error.message,
+            stack: error.stack
+        });
         return null;
     }
 }
 
-
-
-
-// Update the Load More button functionality
 function updateLoadMoreButton() {
-    console.log('Updating load more button');
+    logAuthDetails('Updating load more button');
     const existingButton = document.getElementById('load-more-button');
     if (existingButton) {
-        console.log('Removing existing button');
         existingButton.remove();
     }
 
@@ -361,7 +445,7 @@ function updateLoadMoreButton() {
         !processedFiles.has(file.name)
     ).length;
     
-    console.log(`Remaining images: ${remainingImages}`);
+    logAuthDetails(`Remaining images: ${remainingImages}`);
     
     if (remainingImages > 0) {
         const loadMoreButton = document.createElement('button');
@@ -370,51 +454,25 @@ function updateLoadMoreButton() {
         loadMoreButton.innerHTML = `Load More (${remainingImages} items remaining)`;
         loadMoreButton.disabled = currentlyLoading;
         
-        // Remove any existing click handlers
         const newLoadMoreButton = loadMoreButton.cloneNode(true);
         
-        // Add the click handler
         newLoadMoreButton.addEventListener('click', () => {
-            console.log('Load more button clicked');
+            logAuthDetails('Load more button clicked');
             processNextBatch();
         });
         
         document.getElementById('gallery').appendChild(newLoadMoreButton);
-        console.log('New load more button added');
-    } else {
-        console.log('No more images to load');
     }
 }
 
-
 function updateImageCount(count) {
-    console.log(`Updating image count: ${count}`);
+    logAuthDetails(`Updating image count: ${count}`);
     document.getElementById('imageCount').textContent = 
         `Displaying ${count} image${count !== 1 ? 's' : ''}`;
 }
 
-function handleAuthClick() {
-    console.log('Auth click handler started');
-    tokenClient.callback = async (resp) => {
-        if (resp.error !== undefined) {
-            throw (resp);
-        }
-        console.log('Authorization successful');
-        document.getElementById('authorize-button').style.display = 'none';
-        await listFiles();
-    };
-
-    if (gapi.client.getToken() === null) {
-        console.log('Requesting access token with consent');
-        tokenClient.requestAccessToken({prompt: 'consent'});
-    } else {
-        console.log('Requesting access token without consent');
-        tokenClient.requestAccessToken({prompt: ''});
-    }
-}
-
 function handleRefreshClick() {
-    console.log('Refresh clicked');
+    logAuthDetails('Refresh clicked');
     const loadMoreButton = document.getElementById('load-more-button');
     if (loadMoreButton) {
         loadMoreButton.remove();
@@ -427,18 +485,33 @@ function handleRefreshClick() {
         caches.keys().then(cacheNames => {
             cacheNames.forEach(cacheName => {
                 caches.delete(cacheName);
-                console.log(`Deleted cache: ${cacheName}`);
+                logAuthDetails(`Deleted cache: ${cacheName}`);
             });
         });
     }
     
-    console.log('Starting refresh...');
+    logAuthDetails('Starting refresh...');
     listFiles();
 }
+
+// Add periodic token state check
+function checkTokenState() {
+    const token = gapi.client.getToken();
+    logAuthDetails('Current token state:', {
+        hasToken: !!token,
+        tokenDetails: token ? {
+            expiresIn: token.expires_in,
+            scope: token.scope,
+            tokenType: token.token_type
+        } : null
+    });
+}
+
+setInterval(checkTokenState, 30000); // Check token state every 30 seconds
 
 document.getElementById('authorize-button').addEventListener('click', handleAuthClick);
 document.getElementById('refresh-button').addEventListener('click', handleRefreshClick);
 
 // Refresh every 5 minutes
-console.log('Setting up auto-refresh interval');
+logAuthDetails('Setting up auto-refresh interval');
 setInterval(listFiles, 300000);
