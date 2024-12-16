@@ -4,16 +4,14 @@ const CLIENT_CONFIG = {
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "redirect_uri": window.location.hostname === 'localhost' 
+        ? "http://localhost:8080"
+        : "https://food-track-web-app-986319166215.australia-southeast2.run.app",
     "javascript_origins": [
         "http://localhost:8080",
         "https://food-track-web-app-986319166215.australia-southeast2.run.app"
-    ],
-    "authorized_domains": [
-        "localhost",
-        "food-track-web-app-986319166215.australia-southeast2.run.app"
     ]
 };
-
 
 const FOLDER_ID = '1cnK5Le4U1vUtG_PiGrqU-wxEQKL2Zjfb';
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
@@ -51,8 +49,8 @@ function gisLoaded() {
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_CONFIG.client_id,
         scope: SCOPES,
+        redirect_uri: CLIENT_CONFIG.redirect_uri,
         callback: ''
-        // Remove redirect_uri as it's not needed here
     });
     gisInited = true;
     console.log('GIS loaded successfully');
