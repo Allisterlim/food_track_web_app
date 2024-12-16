@@ -23,3 +23,4 @@ ENV PYTHONUNBUFFERED=1
 
 # Run gunicorn with 4 worker processes
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "4", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+ 
