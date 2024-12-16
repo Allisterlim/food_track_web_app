@@ -25,6 +25,9 @@ steps:
 images:
   - '${_AR_HOSTNAME}-docker.pkg.dev/${PROJECT_ID}/${_SERVICE_NAME}/${_SERVICE_NAME}'
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 substitutions:
   _AR_HOSTNAME: 'australia-southeast2'
   _DEPLOY_REGION: 'australia-southeast2'
