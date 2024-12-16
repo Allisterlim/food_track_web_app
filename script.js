@@ -51,6 +51,7 @@ async function initializeGapiClient() {
     try {
         const initConfig = {
             clientId: CLIENT_CONFIG.client_id,
+            scope: SCOPES,  // Add this line
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
         };
         logAuthDetails('GAPI init config:', initConfig);
@@ -79,25 +80,25 @@ function gisLoaded() {
     const tokenConfig = {
         client_id: CLIENT_CONFIG.client_id,
         scope: SCOPES,
-        callback: (resp) => {
-            if (resp.error !== undefined) {
-                console.error('Authorization error:', resp);
-                return;
-            }
-            // Handle successful authorization
-        }
+        callback: '', // We'll set this in handleAuthClick
+        prompt: 'consent' // Add this to ensure we get the consent screen
     };
+    logAuthDetails('Token client configuration:', tokenConfig);
     
     try {
         tokenClient = google.accounts.oauth2.initTokenClient(tokenConfig);
         logAuthDetails('Token client initialized:', {
             hasTokenClient: !!tokenClient,
-            scope: SCOPES
+            scope: SCOPES,
+            client_id: CLIENT_CONFIG.client_id // Log this to verify
         });
         gisInited = true;
         maybeEnableButtons();
     } catch (error) {
-        logAuthDetails('Token client initialization error:', error);
+        logAuthDetails('Token client initialization error:', {
+            message: error.message,
+            stack: error.stack
+        });
     }
 }
 
