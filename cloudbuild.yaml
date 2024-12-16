@@ -1,0 +1,32 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_AR_HOSTNAME}-docker.pkg.dev/${PROJECT_ID}/${_SERVICE_NAME}/${_SERVICE_NAME}', '.']
+  
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_AR_HOSTNAME}-docker.pkg.dev/${PROJECT_ID}/${_SERVICE_NAME}/${_SERVICE_NAME}']
+  
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+    - 'run'
+    - 'deploy'
+    - '${_SERVICE_NAME}'
+    - '--image'
+    - '${_AR_HOSTNAME}-docker.pkg.dev/${PROJECT_ID}/${_SERVICE_NAME}/${_SERVICE_NAME}'
+    - '--region'
+    - '${_DEPLOY_REGION}'
+    - '--platform'
+    - '${_PLATFORM}'
+    - '--allow-unauthenticated'
+
+images:
+  - '${_AR_HOSTNAME}-docker.pkg.dev/${PROJECT_ID}/${_SERVICE_NAME}/${_SERVICE_NAME}'
+
+substitutions:
+  _AR_HOSTNAME: 'australia-southeast2'
+  _DEPLOY_REGION: 'australia-southeast2'
+  _PLATFORM: 'managed'
+  _SERVICE_NAME: 'food-track-web-app'
