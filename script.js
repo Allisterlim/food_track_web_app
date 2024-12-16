@@ -79,9 +79,14 @@ function gisLoaded() {
     const tokenConfig = {
         client_id: CLIENT_CONFIG.client_id,
         scope: SCOPES,
-        callback: ''
+        callback: (resp) => {
+            if (resp.error !== undefined) {
+                console.error('Authorization error:', resp);
+                return;
+            }
+            // Handle successful authorization
+        }
     };
-    logAuthDetails('Token client configuration:', tokenConfig);
     
     try {
         tokenClient = google.accounts.oauth2.initTokenClient(tokenConfig);
@@ -92,10 +97,7 @@ function gisLoaded() {
         gisInited = true;
         maybeEnableButtons();
     } catch (error) {
-        logAuthDetails('Token client initialization error:', {
-            message: error.message,
-            stack: error.stack
-        });
+        logAuthDetails('Token client initialization error:', error);
     }
 }
 
