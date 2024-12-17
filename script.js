@@ -51,19 +51,18 @@ async function initializeGapiClient() {
     try {
         const initConfig = {
             clientId: CLIENT_CONFIG.client_id,
-            scope: SCOPES,  // Add this line
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
         };
         logAuthDetails('GAPI init config:', initConfig);
-        
+
         await gapi.client.init(initConfig);
-        
+
         logAuthDetails('GAPI client initialized successfully', {
             hasToken: !!gapi.client.getToken(),
             apiKey: !!gapi.client.apiKey,
             clientId: !!gapi.client.clientId
         });
-        
+
         gapiInited = true;
         maybeEnableButtons();
     } catch (error) {
@@ -80,25 +79,25 @@ function gisLoaded() {
     const tokenConfig = {
         client_id: CLIENT_CONFIG.client_id,
         scope: SCOPES,
-        callback: '', // We'll set this in handleAuthClick
-        prompt: 'consent' // Add this to ensure we get the consent screen
+        callback: (resp) => {
+            if (resp.error !== undefined) {
+                console.error('Authorization error:', resp);
+                return;
+            }
+            // Handle successful authorization
+        }
     };
-    logAuthDetails('Token client configuration:', tokenConfig);
-    
+
     try {
         tokenClient = google.accounts.oauth2.initTokenClient(tokenConfig);
         logAuthDetails('Token client initialized:', {
             hasTokenClient: !!tokenClient,
-            scope: SCOPES,
-            client_id: CLIENT_CONFIG.client_id // Log this to verify
+            scope: SCOPES
         });
         gisInited = true;
         maybeEnableButtons();
     } catch (error) {
-        logAuthDetails('Token client initialization error:', {
-            message: error.message,
-            stack: error.stack
-        });
+        logAuthDetails('Token client initialization error:', error);
     }
 }
 
@@ -138,7 +137,7 @@ async function listFiles() {
         gallery.innerHTML = '';
 
         await processNextBatch();
-        
+
         updateImageCount(allFiles.filter(f => f.mimeType.includes('image/')).length);
         document.getElementById('refresh-button').style.display = 'block';
 
@@ -154,7 +153,7 @@ async function listFiles() {
 
 function handleAuthClick() {
     logAuthDetails('Auth click handler started');
-    
+
     tokenClient.callback = async (resp) => {
         logAuthDetails('Token client callback received response:', {
             hasError: !!resp.error,
@@ -172,7 +171,7 @@ function handleAuthClick() {
             });
             throw resp;
         }
-        
+
         const token = gapi.client.getToken();
         logAuthDetails('Current token state:', {
             hasToken: !!token,
@@ -208,9 +207,9 @@ function displayDateSection(date, items) {
     logAuthDetails(`Displaying date section for: ${date}`, {
         itemCount: items.length
     });
-    
+
     const gallery = document.getElementById('gallery');
-    
+
     const existingButton = document.getElementById('load-more-button');
     if (existingButton) {
         existingButton.remove();
@@ -234,10 +233,10 @@ function displayDateSection(date, items) {
     } else {
         dateSection = document.createElement('div');
         dateSection.className = 'date-section';
-        
+
         let totalCalories = 0;
         let validCalorieCount = 0;
-        
+
         items.forEach(({ data }) => {
             if (data.nutritional_info && data.nutritional_info["calories (kcal)"]) {
                 const calories = parseFloat(data.nutritional_info["calories (kcal)"]);
@@ -247,7 +246,7 @@ function displayDateSection(date, items) {
                 }
             }
         });
-        
+
         const dateHeader = document.createElement('div');
         dateHeader.className = 'date-header';
         dateHeader.innerHTML = `
@@ -257,28 +256,28 @@ function displayDateSection(date, items) {
             </div>
         `;
         dateSection.appendChild(dateHeader);
-        
+
         dateContainer = document.createElement('div');
         dateContainer.className = 'date-container';
         dateSection.appendChild(dateContainer);
-        
+
         const allSections = Array.from(gallery.children);
         const insertIndex = allSections.findIndex(section => {
             const sectionDate = section.querySelector('.date-text')?.textContent;
             return sectionDate && new Date(sectionDate) < new Date(date);
         });
-        
+
         if (insertIndex === -1) {
             gallery.appendChild(dateSection);
         } else {
             gallery.insertBefore(dateSection, allSections[insertIndex]);
         }
     }
-    
+
     items.forEach(({ file, data }) => {
         const containerDiv = document.createElement('div');
         containerDiv.className = 'gallery-item';
-        
+
         const img = document.createElement('img');
         const timestamp = new Date().getTime();
         img.src = `https://drive.google.com/thumbnail?id=${file.id}&sz=w1000&t=${timestamp}`;
@@ -289,12 +288,12 @@ function displayDateSection(date, items) {
             this.src = `https://drive.google.com/uc?export=view&id=${file.id}&t=${newTimestamp}`;
         };
         containerDiv.appendChild(img);
-        
+
         const dataDiv = document.createElement('div');
         dataDiv.className = 'metadata';
-        
+
         let content = `<div>Time: ${new Date(data.timestamp).toLocaleString()}</div>`;
-        
+
         if (data.nutritional_info) {
             const nutInfo = data.nutritional_info;
             content += `
@@ -313,7 +312,7 @@ function displayDateSection(date, items) {
         } else {
             content += `<div>Weight: ${data.weight_grams}g</div>`;
         }
-        
+
         dataDiv.innerHTML = content;
         containerDiv.appendChild(dataDiv);
         dateContainer.appendChild(containerDiv);
@@ -351,7 +350,7 @@ async function processNextBatch() {
 
         const batchFiles = imageFiles.slice(0, BATCH_SIZE);
         const filesByDate = {};
-        
+
         for (const file of batchFiles) {
             try {
                 const data = await getAnalysisForImage(allFiles, file.name);
@@ -398,17 +397,17 @@ async function getAnalysisForImage(files, imageName) {
 
     const analysisFileName = `analysis_${timestamp}.json`;
     const metadataFileName = `metadata_${timestamp}.json`;
-    
+
     const analysisFile = files.find(f => f.name === analysisFileName);
     const metadataFile = files.find(f => f.name === metadataFileName);
-    
+
     logAuthDetails('Files found:', {
         analysisFile: !!analysisFile,
         metadataFile: !!metadataFile
     });
 
     let data = null;
-    
+
     try {
         if (analysisFile) {
             logAuthDetails('Fetching analysis file...');
@@ -447,23 +446,23 @@ function updateLoadMoreButton() {
         file.mimeType.includes('image/') && 
         !processedFiles.has(file.name)
     ).length;
-    
+
     logAuthDetails(`Remaining images: ${remainingImages}`);
-    
+
     if (remainingImages > 0) {
         const loadMoreButton = document.createElement('button');
         loadMoreButton.id = 'load-more-button';
         loadMoreButton.className = 'load-more-button';
         loadMoreButton.innerHTML = `Load More (${remainingImages} items remaining)`;
         loadMoreButton.disabled = currentlyLoading;
-        
+
         const newLoadMoreButton = loadMoreButton.cloneNode(true);
-        
+
         newLoadMoreButton.addEventListener('click', () => {
             logAuthDetails('Load more button clicked');
             processNextBatch();
         });
-        
+
         document.getElementById('gallery').appendChild(newLoadMoreButton);
     }
 }
@@ -480,7 +479,7 @@ function handleRefreshClick() {
     if (loadMoreButton) {
         loadMoreButton.remove();
     }
-    
+
     allFiles = [];
     processedFiles.clear();
     currentlyLoading = false;
@@ -492,7 +491,7 @@ function handleRefreshClick() {
             });
         });
     }
-    
+
     logAuthDetails('Starting refresh...');
     listFiles();
 }
@@ -517,4 +516,3 @@ document.getElementById('refresh-button').addEventListener('click', handleRefres
 
 // Refresh every 5 minutes
 logAuthDetails('Setting up auto-refresh interval');
-setInterval(listFiles, 300000);
