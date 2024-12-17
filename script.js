@@ -70,6 +70,7 @@ function displayDateSection(date, items) {
         dateContainer = existingSection.querySelector('.date-container');
         if (!dateContainer) {
             dateContainer = document.createElement('div');
+            dateContainer = document.createElement('div');
             dateContainer.className = 'date-container';
             dateSection.appendChild(dateContainer);
         }
@@ -88,19 +89,17 @@ function displayDateSection(date, items) {
             </div>
         `;
         dateSection.appendChild(dateHeader);
-        
-        // Create container for items
+
         dateContainer = document.createElement('div');
         dateContainer.className = 'date-container';
         dateSection.appendChild(dateContainer);
-        
-        // Insert in chronological order
+
         const allSections = Array.from(gallery.children);
         const insertIndex = allSections.findIndex(section => {
             const sectionDate = section.querySelector('.date-text')?.textContent;
             return sectionDate && new Date(sectionDate) < new Date(date);
         });
-        
+
         if (insertIndex === -1) {
             gallery.appendChild(dateSection);
         } else {
