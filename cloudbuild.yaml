@@ -36,7 +36,7 @@ steps:
       - '--max-instances'
       - '10'
       - '--service-account'
-      - '$PROJECT_ID@appspot.gserviceaccount.com'
+      - '986319166215-compute@developer.gserviceaccount.com'
 
 images:
   - 'gcr.io/$PROJECT_ID/food-track-web-app'
