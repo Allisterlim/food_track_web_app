@@ -26,6 +26,9 @@ if not web_app_secret:
     raise RuntimeError("The web-app secret is not set in environment variables")
 app.secret_key = web_app_secret  # Use web-app secret for Flask session
 
+# Force HTTPS for external URLs
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+
 # OAuth 2.0 client configuration
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 FOLDER_ID = '1cnK5Le4U1vUtG_PiGrqU-wxEQKL2Zjfb'
