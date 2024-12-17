@@ -101,20 +101,24 @@ def serve_index():
 
 @app.route('/authorize')
 def authorize():
+    redirect_uri = get_redirect_uri()
+    print(f"Redirect URI being used: {redirect_uri}")  # Debug log
     flow = Flow.from_client_config(
         CLIENT_CONFIG,
         scopes=SCOPES,
-        redirect_uri=get_redirect_uri()
+        redirect_uri=redirect_uri
     )
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true'
     )
+    print(f"Authorization URL: {authorization_url}")  # Debug log
     session['state'] = state
     return redirect(authorization_url)
 
 @app.route('/oauth2callback')
 def oauth2callback():
+    print(f"Received callback URL: {request.url}")  # Debug log
     state = session['state']
     flow = Flow.from_client_config(
         CLIENT_CONFIG,
