@@ -24,14 +24,14 @@ app = Flask(__name__)
 web_app_secret = os.environ.get('web-app')
 if not web_app_secret:
     raise RuntimeError("The web-app secret is not set in environment variables")
-app.secret_key = web_app_secret  # Use web-app secret for Flask session
-
-# Force HTTPS for external URLs
-app.config['PREFERRED_URL_SCHEME'] = 'https'
+app.secret_key = web_app_secret
 
 # OAuth 2.0 client configuration
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 FOLDER_ID = '1cnK5Le4U1vUtG_PiGrqU-wxEQKL2Zjfb'
+
+# Production URL
+PRODUCTION_URL = "https://food-track-web-app-986319166215.australia-southeast2.run.app"
 
 # Client configuration
 CLIENT_CONFIG = {
@@ -43,13 +43,17 @@ CLIENT_CONFIG = {
         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
         "client_secret": web_app_secret,
         "redirect_uris": [
-            "https://food-track-web-app-986319166215.australia-southeast2.run.app/oauth2callback"
+            f"{PRODUCTION_URL}/oauth2callback"
         ],
         "javascript_origins": [
-            "https://food-track-web-app-986319166215.australia-southeast2.run.app"
+            PRODUCTION_URL
         ]
     }
 }
+
+def get_redirect_uri():
+    """Get the correct redirect URI based on environment"""
+    return f"{PRODUCTION_URL}/oauth2callback"
 
 def login_required(f):
     @wraps(f)
@@ -100,7 +104,7 @@ def authorize():
     flow = Flow.from_client_config(
         CLIENT_CONFIG,
         scopes=SCOPES,
-        redirect_uri=url_for('oauth2callback', _external=True)
+        redirect_uri=get_redirect_uri()
     )
     authorization_url, state = flow.authorization_url(
         access_type='offline',
@@ -116,10 +120,14 @@ def oauth2callback():
         CLIENT_CONFIG,
         scopes=SCOPES,
         state=state,
-        redirect_uri=url_for('oauth2callback', _external=True)
+        redirect_uri=get_redirect_uri()
     )
     
     authorization_response = request.url
+    # Force HTTPS in the authorization response URL
+    if authorization_response.startswith('http:'):
+        authorization_response = 'https:' + authorization_response[5:]
+    
     flow.fetch_token(authorization_response=authorization_response)
     credentials = flow.credentials
     session['credentials'] = {
