@@ -118,31 +118,44 @@ def authorize():
 
 @app.route('/oauth2callback')
 def oauth2callback():
-    print(f"Received callback URL: {request.url}")  # Debug log
-    state = session['state']
-    flow = Flow.from_client_config(
-        CLIENT_CONFIG,
-        scopes=SCOPES,
-        state=state,
-        redirect_uri=get_redirect_uri()
-    )
-    
-    authorization_response = request.url
-    # Force HTTPS in the authorization response URL
-    if authorization_response.startswith('http:'):
-        authorization_response = 'https:' + authorization_response[5:]
-    
-    flow.fetch_token(authorization_response=authorization_response)
-    credentials = flow.credentials
-    session['credentials'] = {
-        'token': credentials.token,
-        'refresh_token': credentials.refresh_token,
-        'token_uri': credentials.token_uri,
-        'client_id': credentials.client_id,
-        'client_secret': credentials.client_secret,
-        'scopes': credentials.scopes
-    }
-    return redirect(url_for('serve_index'))
+    try:
+        print(f"Received callback URL: {request.url}")
+        print(f"Request headers: {dict(request.headers)}")
+        
+        state = session['state']
+        flow = Flow.from_client_config(
+            CLIENT_CONFIG,
+            scopes=SCOPES,
+            state=state,
+            redirect_uri=get_redirect_uri()
+        )
+        
+        # Force HTTPS in the authorization response
+        authorization_response = request.url
+        if 'http://' in authorization_response:
+            authorization_response = authorization_response.replace('http://', 'https://')
+        print(f"Modified authorization response URL: {authorization_response}")
+        
+        # Log client configuration being used
+        print(f"Client ID being used: {CLIENT_CONFIG['web']['client_id']}")
+        print(f"Redirect URI being used: {get_redirect_uri()}")
+        
+        flow.fetch_token(authorization_response=authorization_response)
+        credentials = flow.credentials
+        print("Successfully obtained credentials")
+        
+        session['credentials'] = {
+            'token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'scopes': credentials.scopes
+        }
+        return redirect(url_for('serve_index'))
+    except Exception as e:
+        print(f"Error in callback: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/gallery-data')
 @login_required
