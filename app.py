@@ -27,12 +27,11 @@ if not web_app_secret:
 app.secret_key = web_app_secret  # Use web-app secret for Flask session
 
 # OAuth 2.0 client configuration
-CLIENT_SECRETS_FILE = "client_secrets.json"
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 FOLDER_ID = '1cnK5Le4U1vUtG_PiGrqU-wxEQKL2Zjfb'
 
-# Create client secrets file from your existing configuration
-client_config = {
+# Client configuration
+CLIENT_CONFIG = {
     "web": {
         "client_id": "986319166215-mtmn4gfqvcpm2vo9tee2nnp1t0o8vgg3.apps.googleusercontent.com",
         "project_id": "food-container-439701",
@@ -98,8 +97,8 @@ def serve_index():
 
 @app.route('/authorize')
 def authorize():
-    flow = Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE,
+    flow = Flow.from_client_config(
+        CLIENT_CONFIG,
         scopes=SCOPES,
         redirect_uri=url_for('oauth2callback', _external=True)
     )
@@ -113,8 +112,8 @@ def authorize():
 @app.route('/oauth2callback')
 def oauth2callback():
     state = session['state']
-    flow = Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE,
+    flow = Flow.from_client_config(
+        CLIENT_CONFIG,
         scopes=SCOPES,
         state=state,
         redirect_uri=url_for('oauth2callback', _external=True)
