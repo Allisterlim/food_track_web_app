@@ -164,10 +164,25 @@ def oauth2callback():
 @app.route('/api/gallery-data')
 @login_required
 def get_gallery_data():
-    credentials = Credentials(**session['credentials'])
-    drive_service = build('drive', 'v3', credentials=credentials)
+    print("\n" + "="*50)
+    print("NEW REQUEST TO /api/gallery-data")
+    print("="*50)
     
+    credentials = None
     try:
+        if 'credentials' not in session:
+            print("ERROR: No credentials found in session")
+            return jsonify({'error': 'No credentials found'}), 401
+            
+        print("Attempting to create credentials object...")
+        credentials = Credentials(**session['credentials'])
+        print("Successfully created credentials object")
+        
+        print("Building Drive service...")
+        drive_service = build('drive', 'v3', credentials=credentials)
+        print("Successfully built Drive service")
+        
+        print(f"Querying Drive API for files in folder: {FOLDER_ID}")
         results = drive_service.files().list(
             q=f"'{FOLDER_ID}' in parents and (mimeType contains 'image/' or mimeType contains 'application/json') and trashed = false",
             fields="files(id, name, modifiedTime, mimeType)",
@@ -177,65 +192,94 @@ def get_gallery_data():
             includeItemsFromAllDrives=True
         ).execute()
         
+        files = results.get('files', [])
+        print(f"Retrieved {len(files)} files from Drive")
+        
         # Process and organize files by date
         dates = {}
         total_images = 0
         
-        for file in results.get('files', []):
+        print("Starting to process files...")
+        for file in files:
             if 'image' in file['mimeType']:
                 total_images += 1
                 timestamp = extract_timestamp_from_filename(file['name'])
                 if not timestamp:
+                    print(f"Warning: Could not extract timestamp from filename: {file['name']}")
                     continue
                 
+                print(f"Processing file: {file['name']}")
                 # Get associated metadata/analysis file
-                metadata = get_file_metadata(drive_service, file['name'])
-                
-                if metadata:
-                    date = datetime.fromtimestamp(int(timestamp)/1000).strftime('%Y-%m-%d')
-                    
-                    if date not in dates:
-                        dates[date] = {
-                            'data': [],
-                            'totalCalories': 0,
-                            'itemCount': 0
-                        }
-                    
-                    # Process nutritional info
-                    nutritional_info = metadata.get('nutritional_info', {})
-                    if nutritional_info:
-                        calories = float(nutritional_info.get('calories (kcal)', 0))
-                        dates[date]['totalCalories'] += calories
-                        dates[date]['itemCount'] += 1
-                    
-                    # Add item data
-                    dates[date]['data'].append({
-                        'id': file['id'],
-                        'name': file['name'],
-                        'timestamp': metadata.get('timestamp'),
-                        'weightGrams': metadata.get('weight_grams'),
-                        'nutritionalInfo': {
-                            'totalWeightGrams': nutritional_info.get('total_weight_grams', metadata.get('weight_grams')),
-                            'foodWeightGrams': nutritional_info.get('food_weight_grams', metadata.get('weight_grams')),
-                            'foodIdentified': nutritional_info.get('food_identified_short', ''),
-                            'calories': nutritional_info.get('calories (kcal)', 0),
-                            'carbs': nutritional_info.get('carbohydrates (g)', 0),
-                            'protein': nutritional_info.get('protein (g)', 0),
-                            'fat': nutritional_info.get('fat (g)', 0)
-                        } if nutritional_info else None
-                    })
+                try:
+                    metadata = get_file_metadata(drive_service, file['name'])
+                    if metadata:
+                        date = datetime.fromtimestamp(int(timestamp)/1000).strftime('%Y-%m-%d')
+                        
+                        if date not in dates:
+                            dates[date] = {
+                                'data': [],
+                                'totalCalories': 0,
+                                'itemCount': 0
+                            }
+                        
+                        # Process nutritional info
+                        nutritional_info = metadata.get('nutritional_info', {})
+                        if nutritional_info:
+                            calories = float(nutritional_info.get('calories (kcal)', 0))
+                            dates[date]['totalCalories'] += calories
+                            dates[date]['itemCount'] += 1
+                            print(f"Added {calories} calories for date {date}")
+                        
+                        # Add item data
+                        dates[date]['data'].append({
+                            'id': file['id'],
+                            'name': file['name'],
+                            'timestamp': metadata.get('timestamp'),
+                            'weightGrams': metadata.get('weight_grams'),
+                            'nutritionalInfo': {
+                                'totalWeightGrams': nutritional_info.get('total_weight_grams', metadata.get('weight_grams')),
+                                'foodWeightGrams': nutritional_info.get('food_weight_grams', metadata.get('weight_grams')),
+                                'foodIdentified': nutritional_info.get('food_identified_short', ''),
+                                'calories': nutritional_info.get('calories (kcal)', 0),
+                                'carbs': nutritional_info.get('carbohydrates (g)', 0),
+                                'protein': nutritional_info.get('protein (g)', 0),
+                                'fat': nutritional_info.get('fat (g)', 0)
+                            } if nutritional_info else None
+                        })
+                except Exception as e:
+                    print(f"Error processing metadata for file {file['name']}: {str(e)}")
+                    continue
         
+        print("Rounding total calories for each date...")
         # Round total calories for each date
         for date_data in dates.values():
             date_data['totalCalories'] = round(date_data['totalCalories'])
         
+        print(f"Successfully processed {total_images} images across {len(dates)} dates")
         return jsonify({
             'dates': dates,
             'totalImages': total_images
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print("\nERROR in get_gallery_data:")
+        print("="*50)
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        import traceback
+        print("\nFull traceback:")
+        print(traceback.format_exc())
+        print("="*50)
+        if credentials:
+            print("\nCredentials state:")
+            print(f"Valid: {credentials.valid}")
+            print(f"Expired: {credentials.expired}")
+            print(f"Scopes: {credentials.scopes}")
+        return jsonify({
+            'error': str(e),
+            'error_type': type(e).__name__
+        }), 500
+
 
 @app.route('/api/thumbnail/<file_id>')
 @login_required
@@ -279,5 +323,5 @@ def handle_error(error):
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
     print("-----------------------------------")
-    print("------------App started-------------")
+    print("------------ APP STARTED ----------")
     print("-----------------------------------")
