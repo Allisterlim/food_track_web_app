@@ -12,12 +12,14 @@ from flask import (
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 from functools import wraps
 from datetime import datetime
 from io import BytesIO
 from PIL import Image
 import os
 import json
+import time
 
 app = Flask(__name__)
 # Get web-app secret from environment variables
@@ -31,7 +33,7 @@ app.secret_key = web_app_secret
 print(f"Web app secret length: {len(web_app_secret) if web_app_secret else 'None'}")
 
 # OAuth 2.0 client configuration
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+SCOPES = ['https://www.googleapis.com/auth/drive.file'] # Changed scope to allow file creation
 FOLDER_ID = '1cnK5Le4U1vUtG_PiGrqU-wxEQKL2Zjfb'
 
 # Production URL
@@ -310,9 +312,84 @@ def get_thumbnail(file_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# --- NEW ROUTES FOR RECORDING FOOD ---
+
+@app.route('/record-food')
+@login_required
+def serve_record_food():
+    """Serves the record_food.html page."""
+    return send_from_directory('.', 'record_food.html')
+
+@app.route('/api/record-food', methods=['POST'])
+@login_required
+def record_food():
+    """Handles the food recording form submission."""
+    try:
+        if 'food-image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+
+        file = request.files['food-image']
+        weight = request.form.get('weight')
+
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        if not weight:
+            return jsonify({'error': 'Weight is required'}), 400
+
+        if file:
+            credentials = Credentials(**session['credentials'])
+            drive_service = build('drive', 'v3', credentials=credentials)
+            
+            timestamp = int(time.time() * 1000)
+            
+            # 1. Upload the image file
+            image_filename = f"optimized_food_container_{timestamp}.jpg"
+            image_file_metadata = {
+                'name': image_filename,
+                'parents': [FOLDER_ID]
+            }
+            media = MediaIoBaseUpload(file.stream, mimetype=file.mimetype, resumable=True)
+            drive_service.files().create(
+                body=image_file_metadata,
+                media_body=media,
+                fields='id'
+            ).execute()
+
+            # 2. Create and upload the corresponding metadata JSON file
+            metadata_content = {
+                "timestamp": timestamp,
+                "weight_grams": float(weight),
+                "nutritional_info": None  # This can be populated later by another process
+            }
+            metadata_filename = f"metadata_{timestamp}.json"
+            metadata_file_metadata = {
+                'name': metadata_filename,
+                'parents': [FOLDER_ID]
+            }
+            metadata_json_bytes = json.dumps(metadata_content, indent=4).encode('utf-8')
+            metadata_media = MediaIoBaseUpload(BytesIO(metadata_json_bytes), mimetype='application/json')
+
+            drive_service.files().create(
+                body=metadata_file_metadata,
+                media_body=metadata_media,
+                fields='id'
+            ).execute()
+
+            return jsonify({'message': 'Food recorded successfully'}), 200
+
+    except Exception as e:
+        print(f"Error in record_food: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# --- END OF NEW ROUTES ---
+
 @app.route('/<path:path>')
 @login_required
 def serve_files(path):
+    # Serve the new record_food.js file
+    if path == 'record_food.js':
+        return send_from_directory('.', 'record_food.js')
     return send_from_directory('.', path)
 
 @app.errorhandler(Exception)

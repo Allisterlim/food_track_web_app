@@ -170,10 +170,32 @@
             background-color: #ccc;
             cursor: not-allowed;
         }
+        /* Navigation Styles */
+        nav {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        nav a {
+            margin: 0 15px;
+            font-size: 18px;
+            text-decoration: none;
+        }
+        .gallery-link {
+            color: #4285f4;
+            font-weight: bold;
+        }
+        .record-link {
+            color: #34a853;
+        }
     </style>
 </head>
 <body>
     <h1>Food Container Image Gallery</h1>
+    <!-- Navigation Links -->
+    <nav>
+        <a href="/" class="gallery-link">Gallery</a>
+        <a href="/record-food" class="record-link">Record Food</a>
+    </nav>
     <button id="authorize-button">Authorize Access</button>
     <button id="refresh-button">Refresh Images</button>
     <div id="imageCount" class="image-count"></div>
@@ -185,3 +207,4 @@
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 </body>
+</html>
